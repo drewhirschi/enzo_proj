@@ -1,5 +1,3 @@
-// import "jsr:@std/dotenv/load";
-
 import 'dotenv/config';
 
 import fs, { createReadStream } from 'fs';
@@ -7,13 +5,8 @@ import fs, { createReadStream } from 'fs';
 import csv from 'csv-parser'
 import { getEmbedding } from "./helpers.ts";
 
-// import { parse } from "jsr:@std/csv";
-
-
-
 async function createEmbeddings() {
-    // const csvText = await Deno.readTextFile("icd10_top200.csv");
-    // const csvRecords = parse(csvText, { skipFirstRow: true }) as Array<{ code: string, description: string }>;
+
 
     const rows: { code: string, description: string }[] = await new Promise((resolve, reject) => {
         const results: { code: string, description: string }[] = [];

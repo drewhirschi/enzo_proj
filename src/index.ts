@@ -1,5 +1,3 @@
-// import "jsr:@std/dotenv/load";
-
 import 'dotenv/config';
 
 import { CompletionModels, EmbeddingIndex, dedupeByProperty, getEmbedding, getStructuredCompletion } from "./helpers.ts";

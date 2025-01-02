@@ -4,10 +4,6 @@ import { HierarchicalNSW } from 'hnswlib-node';
 import { z } from "zod";
 import { zodResponseFormat } from "openai/helpers/zod";
 
-// import { parse } from "jsr:@std/csv";
-
-
-
 export enum CompletionModels {
     gpt4o = "gpt-4o",
     gpt4oMini = "gpt-4o-mini",
@@ -25,7 +21,6 @@ interface StructuredCompletionOptions<Z extends z.ZodTypeAny> extends Completion
     schema: Z;
 }
 
-// const apiKey = Deno.env.get("OPENAI_API_KEY");
 const apiKey = process.env.OPENAI_API_KEY
 if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not set");
