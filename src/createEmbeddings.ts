@@ -2,10 +2,10 @@
 
 import 'dotenv/config';
 
-import { EmbeddingIndex, getEmbedding } from "./helpers.ts";
 import fs, { createReadStream } from 'fs';
 
 import csv from 'csv-parser'
+import { getEmbedding } from "./helpers.ts";
 
 // import { parse } from "jsr:@std/csv";
 

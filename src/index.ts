@@ -10,30 +10,32 @@ import { z } from "zod";
 
 export const ICD10CodeSchema = z.object({ code: z.string(), description: z.string(), evidence: z.string() })
 export const CodeResponseSchema = z.object({ codes: z.array(ICD10CodeSchema) })
-
 export const PatientReviewSchema = z.object({ review: z.array(z.object({ code: z.string(), accept: z.boolean(), reason: z.string() })) })
 
+interface ICD10Code {
+    code: string,
+    description: string,
+}
 
+interface ICD10EmbCode extends ICD10Code {
+    emb: number[]
+}
 
 
 async function main() {
 
-    const embeddings: { code: string, emb: number[], description: string }[] = JSON.parse(fs.readFileSync("icd10_top200_emb.json", "utf-8"));
-
-
+    const embeddings: ICD10EmbCode[] = JSON.parse(fs.readFileSync("icd10_top200_emb.json", "utf-8"));
     const numDimensions = 1536;
     const maxElements = 200;
-
     const index = new EmbeddingIndex(numDimensions, maxElements);
-
     index.addItems(embeddings);
 
-    const codes = new Map<string, string>()
 
+    const codeDescriptions = new Map<string, string>()
     await new Promise((resolve, reject) => {
         createReadStream('icd10_top200.csv')
             .pipe(csv())
-            .on('data', (data) => codes.set(data.code, data.description))
+            .on('data', (data) => codeDescriptions.set(data.code, data.description))
             .on('end', () => {
                 resolve(true);
             })
@@ -45,14 +47,13 @@ async function main() {
 
     //Implement a system of agents to process medical text and generate ICD-10 codes as described in the referenced paper.
     // The system should focus on getting agents to work together effectively and output data in the expected format.
-
     async function codeNotes(input: string): Promise<z.infer<typeof ICD10CodeSchema>[]> {
 
         const symptomsRes = await getStructuredCompletion({
             model: CompletionModels.gpt4o,
             schema: z.object({ symptoms: z.string().array() }),
             system: `You are a physician who treats patients. Please check the patient notes and provide a list of symptoms.
-        Each symtom should be similar to a ICD-10 code description. Don't include the actual code.`,
+        Each symptom should be similar to a ICD-10 code description. Don't include the actual code.`,
             user: `Medical notes:\n${input}`
         })
 
@@ -64,17 +65,16 @@ async function main() {
         const symptomEmbsProms = symptomsRes.symptoms.map(async symptom => {
             return await getEmbedding(symptom, "small")
         })
-
         const symptomEmbs = await Promise.all(symptomEmbsProms)
 
-        const candidateCodes = dedupeByProperty(symptomEmbs.flatMap((emb, i) => {
+        const candidateCodes = dedupeByProperty("code", symptomEmbs.flatMap((emb) => {
             const { neighbors } = index.searchNearest(emb);
             return neighbors.filter(n => n.code != undefined).map((n) => ({
                 code: n.code,
-                description: codes.get(n.code!),
+                description: codeDescriptions.get(n.code!),
             }))
 
-        }), "code")
+        }))
 
 
         // doctor generates assessment and plan sections
@@ -91,13 +91,9 @@ async function main() {
         }
 
 
-
-
-
         // The physician compares the generated assessment and plan with the original gold standard
         // assessment and plan section to check for accuracy and completeness, identfy inconsistencies and
         // generate the ICD codes.
-
         const physicianCodes = await getStructuredCompletion({
             model: CompletionModels.gpt4o,
             schema: CodeResponseSchema,
@@ -107,16 +103,9 @@ async function main() {
             user: `Original medical notes: ${input}\n\n Generated assessment ${ap?.assessment}\n\n Generated plan: ${ap?.plan}`
         })
 
-
-
         if (!physicianCodes) {
             throw new Error("No physician codes");
         }
-
-
-
-
-
 
 
         const patientReview = await getStructuredCompletion({
@@ -129,19 +118,14 @@ async function main() {
             user: `Physician Notes:\n${input}\n\nPhysician Codes:\n${JSON.stringify(physicianCodes.codes)}\n`
         })
 
-
-
         if (!patientReview) {
             throw new Error("No patient review");
         }
 
 
-
         const disputes = patientReview.review
             .filter(c => c.accept == false)
-            .map(c => ({ code: c.code, description: codes.get(c.code!) }))
-
-
+            .map(c => ({ code: c.code, description: codeDescriptions.get(c.code!) }))
 
         const adjustorReview = await getStructuredCompletion({
             model: CompletionModels.gpt4o,
@@ -155,11 +139,10 @@ async function main() {
 Patient disputes:\n${JSON.stringify(disputes)}\n\nICD-10 Documentation:\n${JSON.stringify(disputes)}`
         })
 
-
-
         if (!adjustorReview) {
             throw new Error("No adjustor review");
         }
+
 
 
         return adjustorReview.codes
@@ -195,4 +178,5 @@ Once confirmed in the diagnosis of sinusitis in the cephalosporin, it was decide
 
 
 main()
+
 

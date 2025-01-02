@@ -1,8 +1,6 @@
 import { AzureOpenAI } from "openai";
 import { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { HierarchicalNSW } from 'hnswlib-node';
-import { createReadStream } from 'fs'
-import csv from 'csv-parser'
 import { z } from "zod";
 import { zodResponseFormat } from "openai/helpers/zod";
 
@@ -114,10 +112,6 @@ export async function getEmbedding(text: string, model: "small" | "large"): Prom
 
 
 
-
-
-
-
 export class EmbeddingIndex {
 
     private index: HierarchicalNSW;
@@ -173,7 +167,7 @@ export class EmbeddingIndex {
 }
 
 
-export const dedupeByProperty = (arr, property) => {
+export const dedupeByProperty = (property: string, arr: object[]) => {
     const map = new Map();
     arr.forEach(item => map.set(item[property], item));
     return Array.from(map.values());
